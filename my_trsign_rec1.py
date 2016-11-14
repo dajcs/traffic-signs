@@ -146,6 +146,13 @@ norm_images = normalize(images)
 plot_images(6,7, norm_images, imgcls)
 
 
+
+# Change to float32, we're working with float32 in tf
+train_features = train_features.astype(np.float32)
+test_features = test_features.astype(np.float32)
+
+
+
 # Turn labels into numbers and apply One-Hot Encoding
 encoder = LabelBinarizer()
 encoder.fit(y_train)
@@ -203,6 +210,7 @@ print('Data cached in pickle file.')
 
 # Load the modules
 import pickle
+import matplotlib.pyplot as plt
 
 import numpy as np
 import tensorflow as tf
@@ -276,12 +284,19 @@ test_feed_dict = {features: test_features, labels: test_labels}
 logits = tf.matmul(features, weights) + biases
 
 prediction = tf.nn.softmax(logits)
+#
+## Cross entropy
+#cross_entropy = -tf.reduce_sum(labels * tf.log(prediction), reduction_indices=1)
+#cross_entropy = -tf.reduce_sum(labels * tf.log(prediction + 1e-10), reduction_indices=1)
 
-# Cross entropy
-cross_entropy = -tf.reduce_sum(labels * tf.log(prediction), reduction_indices=1)
+
+# cost function
+cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=labels)  # [batch]
 
 # Training loss
 loss = tf.reduce_mean(cross_entropy)
+
+
 
 # Create an operation that initializes all variables
 init = tf.initialize_all_variables()
@@ -310,15 +325,20 @@ print('Accuracy function created.')
 
 
 
-epochs = 5
+epochs = 10
 batch_size = 100
-learning_rate = 0.1
+learning_rate = 0.05
 
 
 
 ### DON'T MODIFY ANYTHING BELOW ###
 # Gradient Descent
-optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
+#optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
+optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss)
+
+# Create an operation that initializes all variables
+init = tf.initialize_all_variables()
+
 
 # The accuracy measured against the validation set
 validation_accuracy = 0.0
@@ -366,8 +386,10 @@ with tf.Session() as session:
                 train_acc_batch.append(training_accuracy)
                 valid_acc_batch.append(validation_accuracy)
 
-        # Check accuracy against Validation data
-        validation_accuracy = session.run(accuracy, feed_dict=valid_feed_dict)
+    # Check accuracy against Validation data
+    validation_accuracy = session.run(accuracy, feed_dict=valid_feed_dict)
+    test_accuracy = session.run(accuracy, feed_dict=test_feed_dict)
+
 
 loss_plot = plt.subplot(211)
 loss_plot.set_title('Loss')
@@ -384,13 +406,52 @@ plt.tight_layout()
 plt.show()
 
 print('Validation accuracy at {}'.format(validation_accuracy))
+print('Test accuracy at {}'.format(test_accuracy))
 
 
 
 
 
 
+# epochs =
+# batch_size =
+# learning_rate =
 
+
+
+### DON'T MODIFY ANYTHING BELOW ###
+# The accuracy measured against the test set
+test_accuracy = 0.0
+
+with tf.Session() as session:
+
+    session.run(init)
+#    batch_count = int(math.ceil(len(train_features)/batch_size))
+    batch_count = int(len(train_features)/batch_size)
+
+    for epoch_i in range(epochs):
+
+        # Progress bar
+        batches_pbar = tqdm(range(batch_count), desc='Epoch {:>2}/{}'.format(epoch_i+1, epochs), unit='batches')
+
+        # The training cycle
+        for batch_i in batches_pbar:
+            # Get a batch of training features and labels
+            batch_start = batch_i*batch_size
+            batch_features = train_features[batch_start:batch_start + batch_size]
+            batch_labels = train_labels[batch_start:batch_start + batch_size]
+
+            # Run optimizer
+            _ = session.run(optimizer, feed_dict={features: batch_features, labels: batch_labels})
+
+        # Check accuracy against Test data
+        test_accuracy = session.run(accuracy, feed_dict=test_feed_dict)
+
+print('Test accuracy at {}'.format(test_accuracy))
+
+
+assert test_accuracy >= 0.80, 'Test accuracy at {}, should be equal to or greater than 0.80'.format(test_accuracy)
+print('Nice Job! Test Accuracy is {}'.format(test_accuracy))
 
 
 
