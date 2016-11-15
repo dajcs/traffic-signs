@@ -298,21 +298,6 @@ loss = tf.reduce_mean(cross_entropy)
 
 
 
-# Create an operation that initializes all variables
-init = tf.initialize_all_variables()
-
-# Test Cases
-with tf.Session() as session:
-    session.run(init)
-    session.run(loss, feed_dict=train_feed_dict)
-    session.run(loss, feed_dict=valid_feed_dict)
-    session.run(loss, feed_dict=test_feed_dict)
-    biases_data = session.run(biases)
-
-assert not np.count_nonzero(biases_data), 'biases must be zeros'
-
-print('Tests Passed!')
-
 
 # Determine if the predictions are correct
 is_correct_prediction = tf.equal(tf.argmax(prediction, 1), tf.argmax(labels, 1))
@@ -325,8 +310,8 @@ print('Accuracy function created.')
 
 
 
-epochs = 10
-batch_size = 100
+epochs = 20
+batch_size = 300
 learning_rate = 0.05
 
 
