@@ -216,21 +216,19 @@ import numpy as np
 import tensorflow as tf
 from tqdm import tqdm
 
+
 # Reload the data
-pickle_file = 'traf_sign_norm_1hot.pickle'
+pickle_file = 'traf_sign_norm_rand_1hot.pickle'
 with open(pickle_file, 'rb') as f:
-  pickle_data = pickle.load(f)
-  X_train = pickle_data['train_dataset']
-  y_train = pickle_data['train_labels']
-  X_valid = pickle_data['valid_dataset']
-  y_valid = pickle_data['valid_labels']
-  X_test = pickle_data['test_dataset']
-  y_test = pickle_data['test_labels']
-  del pickle_data  # Free up memory
+    pickle_data = pickle.load(f)
+    X_train = pickle_data['X_train']
+    y_train = pickle_data['y_train']
+    X_test = pickle_data['X_test']
+    y_test = pickle_data['y_test']
+    del pickle_data  # Free up memory
 
 
-print('Data and modules loaded.')
-
+print('Training and testing data is loaded.')
 
 
 #tf.set_random_seed(42)
@@ -297,14 +295,12 @@ loss = tf.reduce_mean(cross_entropy)
 correct_prediction = tf.equal(tf.argmax(Y, 1), tf.argmax(Y_, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-#train_step = tf.train.GradientDescentOptimizer(0.005).minimize(cross_entropy)
 
-epochs = 20
+epochs = 10
 batch_size = 300
-learning_rate = 0.05
+learning_rate = 0.003
 
-# Gradient Descent
-#optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
+# AdamOptimizer
 optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss)
 
 # init
@@ -312,15 +308,12 @@ init = tf.initialize_all_variables()
 session = tf.Session()
 session.run(init)
 
-# The accuracy measured against the validation set
-validation_accuracy = 0.0
-
 # Measurements use for graphing loss and accuracy
-log_batch_step = 50
+log_batch_step = 10
 batches = []
 loss_batch = []
 train_acc_batch = []
-valid_acc_batch = []
+test_acc_batch = []
 
 batch_count = int(len(X_train)/batch_size)
 
@@ -334,7 +327,6 @@ for epoch_i in range(epochs):
         # Get a batch of training features and labels
         batch_start = batch_i*batch_size
         X_batch = X_train[batch_start:batch_start + batch_size]
-#            batch_features = np.reshape(batch_features, [-1, 3072])
         y_batch = y_train[batch_start:batch_start + batch_size]
 
         # Run optimizer and get loss
@@ -342,22 +334,21 @@ for epoch_i in range(epochs):
             [optimizer, loss],
             feed_dict={X: X_batch, Y_: y_batch})
 
-        # Log every 50 batches
+        # Log every after log_batch_step batches
         if batch_i % log_batch_step == 0:
             # Calculate Training and Validation accuracy
             training_accuracy = session.run(accuracy, feed_dict={X: X_train, Y_: y_train})
-            validation_accuracy = session.run(accuracy, feed_dict={X: X_valid, Y_: y_valid})
+            test_accuracy = session.run(accuracy, feed_dict={X: X_test, Y_: y_test})
 
             # Log batches
             previous_batch = batches[-1] if batches else 0
             batches.append(log_batch_step + previous_batch)
             loss_batch.append(l)
             train_acc_batch.append(training_accuracy)
-            valid_acc_batch.append(validation_accuracy)
+            test_acc_batch.append(test_accuracy)
 
-    # Check accuracy against Validation data
-    validation_accuracy = session.run(accuracy, feed_dict={X: X_valid, Y_: y_valid})
-    test_accuracy = session.run(accuracy, feed_dict={X: X_test, Y_: y_test})
+# Check test accuracy
+test_accuracy = session.run(accuracy, feed_dict={X: X_test, Y_: y_test})
 
 
 loss_plot = plt.subplot(211)
@@ -367,17 +358,16 @@ loss_plot.set_xlim([batches[0], batches[-1]])
 acc_plot = plt.subplot(212)
 acc_plot.set_title('Accuracy')
 acc_plot.plot(batches, train_acc_batch, 'r', label='Training Accuracy')
-acc_plot.plot(batches, valid_acc_batch, 'b', label='Validation Accuracy')
+acc_plot.plot(batches, test_acc_batch, 'c', label='Test Accuracy')
 acc_plot.set_ylim([0, 1.0])
 acc_plot.set_xlim([batches[0], batches[-1]])
 acc_plot.legend(loc='best')
 plt.tight_layout()
 plt.show()
 
-print('Validation accuracy at {}'.format(validation_accuracy))
+print('Epochs =', epochs)
+print('learning_rate =', learning_rate)
 print('Test accuracy at {}'.format(test_accuracy))
-
-
 
 
 
