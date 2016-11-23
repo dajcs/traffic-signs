@@ -30,8 +30,6 @@ print('Training and testing data is loaded.')
 
 
 
-#tf.set_random_seed(42)
-
 # neural network structure 3 * cnn + 2 * sigmoid + 1 * softmax:
 #
 # · · · · · · · · · ·      (input data, 3-deep(color))           X [batch, 32, 32, 3]
@@ -70,17 +68,17 @@ O = 200  # fully connected layer
 
 # relu Bias needs to be initialized to a small number > 0
 W1 = tf.Variable(tf.truncated_normal([6, 6, 3, K], stddev=0.1))  # 6x6 patch, 3 input channel, K output channels (32)
-B1 = tf.Variable(tf.ones([K])/128)
+B1 = tf.Variable(tf.ones([K])/22)
 W2 = tf.Variable(tf.truncated_normal([5, 5, K, L], stddev=0.1))  # 5x5 patch, K input channel, L output channels (64)
-B2 = tf.Variable(tf.ones([L])/32)
+B2 = tf.Variable(tf.ones([L])/22)
 W3 = tf.Variable(tf.truncated_normal([4, 4, L, M], stddev=0.1))  # 4x4 patch, L input channel, M output channels (128)
-B3 = tf.Variable(tf.ones([M])/8)
+B3 = tf.Variable(tf.ones([M])/22)
 W4 = tf.Variable(tf.truncated_normal([8 * 8 * M, N], stddev=0.1))  # fully conn [8*8*M,N] -> (3072,800)
-B4 = tf.Variable(tf.zeros([N])/800)
+B4 = tf.Variable(tf.zeros([N]))
 W5 = tf.Variable(tf.truncated_normal([N, O], stddev=0.1))        # fully conn [N, O]  [800,200]
-B5 = tf.Variable(tf.zeros([O])/200)
+B5 = tf.Variable(tf.zeros([O]))
 W6 = tf.Variable(tf.truncated_normal([O, 43], stddev=0.1))       # fully conn [O, 43] -> (200,43)
-B6 = tf.Variable(tf.zeros([43])/43)
+B6 = tf.Variable(tf.zeros([43]))
 
 
 # The model
@@ -123,9 +121,13 @@ pk = 0.6
 epochs = 5
 batch_size = 300
 learning_rate = 0.003
+regularization_fix = 13
 
 # AdamOptimizer
 optimizer = tf.train.AdamOptimizer(learning_rate=lr).minimize(loss)
+
+# saver
+saver = tf.train.Saver()
 
 # init
 init = tf.initialize_all_variables()
@@ -158,7 +160,7 @@ for epoch_i in range(epochs):
             feed_dict={X: X_batch, Y_: y_batch, pkeep: 1.0})
 
         # fixing regularization
-        tf.set_random_seed(((epoch_i*batch_count)+batch_i)%12)
+        tf.set_random_seed(((epoch_i*batch_count)+batch_i)%regularization_fix)
 
         # optimize parameters
         _ = session.run(optimizer,
@@ -181,6 +183,9 @@ for epoch_i in range(epochs):
 #    print('\n','test_accuracy=',test_accuracy)
 
 test_accuracy = session.run(accuracy, feed_dict={X: X_test[:11111], Y_: y_test[:11111], pkeep: 1.0})
+
+# checkpoint save
+saver.save(session, '3cnn_2sigmoid_1softmax2.ckpt') # 1: 957, 3: 956, 2:955
 session.close()
 
 loss_plot = plt.subplot(211)
@@ -194,7 +199,7 @@ acc_plot.plot(batches, train_acc_batch, 'r', label='Training Accuracy')
 acc_plot.plot(batches, test_acc_batch, 'c', label='Test Accuracy')
 acc_plot.set_ylim([0, 1.0])
 acc_plot.set_xlim([batches[0], batches[-1]])
-acc_plot.legend(loc='best')
+acc_plot.legend(loc='lower right')
 plt.tight_layout()
 plt.show()
 
@@ -202,6 +207,7 @@ print('epochs =', epochs) # 33
 print('batch_size =',batch_size) # 300
 print('learning_rate =',learning_rate) # 0.0005
 print('pkeep =', pk)
+print('regularization_fix =',regularization_fix)
 print('Last Test accuracy: {}'.format(test_accuracy))
 print('Max Test accuracy: {}'.format(np.max(test_acc_batch)))
 
@@ -217,4 +223,4 @@ print('Max Test accuracy: {}'.format(np.max(test_acc_batch)))
 #B3 = tf.Variable(tf.ones([M])/8)
 #B4 = tf.Variable(tf.zeros([N])/430)
 #B5 = tf.Variable(tf.zeros([43])/43)
-#tf.set_random_seed(((epoch_i*batch_count)+batch_i)%12)
+#tf.set_random_seed(((epoch_i*batch_count)+batch_i)%13)
